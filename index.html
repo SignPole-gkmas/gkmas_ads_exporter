@@ -8,7 +8,7 @@
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
-      padding: 1.5rem;
+      padding: 1.2rem;
       background: #f5f5f5;
       color: #333;
     }
@@ -67,17 +67,6 @@
       box-sizing: border-box;
       resize: vertical;
     }
-    .download-link {
-      margin-top: 0.6rem;
-      font-size: 0.95rem;
-    }
-    .download-link a {
-      color: #2563eb;
-      text-decoration: none;
-    }
-    .download-link a:hover {
-      text-decoration: underline;
-    }
     .note {
       font-size: 0.8rem;
       color: #6b7280;
@@ -86,12 +75,50 @@
     ul {
       margin-top: 0.3rem;
     }
+    /* フォーム案内メッセージ */
+    .form-message {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      background: #eff6ff;
+      border-radius: 8px;
+      padding: 0.75rem;
+      border: 1px solid #bfdbfe;
+      color: #1f2933;
+    }
+    .form-message a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .form-message a:hover {
+      text-decoration: underline;
+    }
+    /* 「こちらのフォーム」を1.5倍にするクラス */
+    .form-message .form-link {
+      font-size: 1.5em;
+    }
+    /* フッター */
+    .footer {
+      max-width: 800px;
+      margin: 1rem auto 0 auto;
+      font-size: 0.8rem;
+      color: #6b7280;
+      text-align: center;
+    }
+    .footer a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>学マス広告 URL 抽出ツール</h1>
-    <p>ローカルの <code>watch-history.json</code>（または同等形式）から、学マス関連の広告経由で視聴したURLを抽出します。</p>
+    <p><a href="https://takeout.google.com/settings/takeout/custom/youtube" target="_blank" rel="noopener noreferrer">Google データエクスポート</a> から取得した <code>watch-history.json</code>（または同等形式）から、学マス関連の広告経由で視聴したURLを抽出します。</p>
 
     <div class="section">
       <label for="jsonFile">JSONファイルを選択</label>
@@ -104,13 +131,19 @@
     </div>
 
     <div class="section">
-      <label for="result">抽出されたURL一覧（1行1URL）</label>
+      <label for="result">抽出されたURL一覧</label>
       <textarea id="result" readonly placeholder="ここに結果が表示されます"></textarea>
-      <div class="download-link" id="downloadArea" style="display:none;">
-        <a id="downloadLink" href="#" download="gakumasAds.csv">gakumasAds.csv としてダウンロード</a>
-      </div>
+      <!-- CSVダウンロードリンクを削除しました -->
+      <div class="form-message" id="formMessage" style="display:none;"></div>
     </div>
   </div>
+
+  <!-- ▼ フッターを追加 ▼ -->
+  <div class="footer">
+    Powered By
+    <a href="https://x.com/Barbers_Pole_" target="_blank" rel="noopener noreferrer">@Barbers_pole_</a>
+  </div>
+  <!-- ▲ フッターここまで ▲ -->
 
   <script>
     (function () {
@@ -124,8 +157,7 @@
       const runButton = document.getElementById("runButton");
       const statusEl = document.getElementById("status");
       const resultEl = document.getElementById("result");
-      const downloadArea = document.getElementById("downloadArea");
-      const downloadLink = document.getElementById("downloadLink");
+      const formMessage = document.getElementById("formMessage");
 
       let selectedFile = null;
 
@@ -134,7 +166,8 @@
         runButton.disabled = !selectedFile;
         statusEl.textContent = selectedFile ? `${selectedFile.name} が選択されました。` : "";
         resultEl.value = "";
-        downloadArea.style.display = "none";
+        formMessage.style.display = "none";
+        formMessage.innerHTML = "";
       });
 
       runButton.addEventListener("click", () => {
@@ -143,7 +176,8 @@
         }
         statusEl.textContent = "解析中です...";
         resultEl.value = "";
-        downloadArea.style.display = "none";
+        formMessage.style.display = "none";
+        formMessage.innerHTML = "";
 
         const reader = new FileReader();
         reader.onerror = () => {
@@ -160,14 +194,24 @@
 
             if (urls.length === 0) {
               statusEl.textContent = "条件に合致するURLは見つかりませんでした。";
-              downloadArea.style.display = "none";
+              formMessage.style.display = "none";
+              formMessage.innerHTML = "";
             } else {
               statusEl.textContent = `抽出されたURL数: ${urls.length} 件`;
-              prepareDownload(output);
+
+              // 「こちらのフォーム」に class="form-link" を付けて1.5倍表示
+              formMessage.innerHTML =
+                '抽出されたURLを、' +
+                '<a class="form-link" href="https://docs.google.com/forms/d/e/1FAIpQLSeykXX-h9t-PE15nohApOopopPf9Nxkp4hLmzfkt9D9yjqtAg/viewform" target="_blank" rel="noopener noreferrer">' +
+                'こちらのフォーム' +
+                '</a> に貼り付けて送信していただけると非常にありがたいです。';
+              formMessage.style.display = "block";
             }
           } catch (e) {
             console.error(e);
             statusEl.textContent = "JSON の解析に失敗しました。ファイル形式を確認してください。";
+            formMessage.style.display = "none";
+            formMessage.innerHTML = "";
           }
         };
         reader.readAsText(selectedFile, "utf-8");
@@ -205,7 +249,7 @@
           rows.push({ time: timeStr, url });
         }
 
-        // timeの降順でソート（PowerShellの Sort-Object time -Descending 相当）
+        // timeの降順でソート
         rows.sort((a, b) => b.time.localeCompare(a.time));
 
         // URLの重複排除（最初に出てきたものを採用）
@@ -221,7 +265,7 @@
       }
 
       /**
-       * ルートからアイテム配列を取り出す（PowerShellのキー探索に相当）
+       * ルートからアイテム配列を取り出す
        */
       function extractItemsArray(root) {
         if (Array.isArray(root)) {
@@ -241,8 +285,6 @@
 
       /**
        * detailsに広告情報が含まれているか確認
-       * PowerShellの:
-       *   if ($details -is [System.Collections.IEnumerable]) {... name -match $adsPattern}
        */
       function hasAdsDetail(details) {
         if (!details) return false;
@@ -269,17 +311,6 @@
         }
 
         return false;
-      }
-
-      /**
-       * ダウンロード用リンクを生成
-       */
-      function prepareDownload(content) {
-        const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        downloadLink.href = url;
-        downloadLink.download = "gakumasAds.csv";
-        downloadArea.style.display = "block";
       }
     })();
   </script>
