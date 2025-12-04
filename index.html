@@ -97,6 +97,11 @@
     .form-message .form-link {
       font-size: 1.5em;
     }
+    /* コピー用ボタンの配置 */
+    .copy-area {
+      margin-top: 0.5rem;
+      text-align: right;
+    }
     /* フッター */
     .footer {
       max-width: 800px;
@@ -112,6 +117,22 @@
     }
     .footer a:hover {
       text-decoration: underline;
+    }
+    /* コピー完了ポップアップ */
+    .copy-popup {
+      position: fixed;
+      left: 50%;
+      bottom: 1.5rem;
+      transform: translateX(-50%);
+      background: rgba(31, 41, 55, 0.95); /* 濃いグレー */
+      color: #fff;
+      padding: 0.6rem 1.1rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+      z-index: 1000;
+      display: none;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -133,7 +154,9 @@
     <div class="section">
       <label for="result">抽出されたURL一覧</label>
       <textarea id="result" readonly placeholder="ここに結果が表示されます"></textarea>
-      <!-- CSVダウンロードリンクを削除しました -->
+      <div class="copy-area">
+        <button id="copyButton" style="display:none;">すべてコピーする</button>
+      </div>
       <div class="form-message" id="formMessage" style="display:none;"></div>
     </div>
   </div>
@@ -144,6 +167,9 @@
     <a href="https://x.com/Barbers_Pole_" target="_blank" rel="noopener noreferrer">@Barbers_pole_</a>
   </div>
   <!-- ▲ フッターここまで ▲ -->
+
+  <!-- コピー完了ポップアップ -->
+  <div id="copyPopup" class="copy-popup">URLをコピーしました。</div>
 
   <script>
     (function () {
@@ -158,8 +184,11 @@
       const statusEl = document.getElementById("status");
       const resultEl = document.getElementById("result");
       const formMessage = document.getElementById("formMessage");
+      const copyButton = document.getElementById("copyButton");
+      const copyPopup = document.getElementById("copyPopup");
 
       let selectedFile = null;
+      let popupTimer = null;
 
       fileInput.addEventListener("change", () => {
         selectedFile = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
@@ -168,6 +197,8 @@
         resultEl.value = "";
         formMessage.style.display = "none";
         formMessage.innerHTML = "";
+        copyButton.style.display = "none";
+        hideCopyPopup();
       });
 
       runButton.addEventListener("click", () => {
@@ -178,6 +209,8 @@
         resultEl.value = "";
         formMessage.style.display = "none";
         formMessage.innerHTML = "";
+        copyButton.style.display = "none";
+        hideCopyPopup();
 
         const reader = new FileReader();
         reader.onerror = () => {
@@ -196,6 +229,7 @@
               statusEl.textContent = "条件に合致するURLは見つかりませんでした。";
               formMessage.style.display = "none";
               formMessage.innerHTML = "";
+              copyButton.style.display = "none";
             } else {
               statusEl.textContent = `抽出されたURL数: ${urls.length} 件`;
 
@@ -206,16 +240,74 @@
                 'こちらのフォーム' +
                 '</a> に貼り付けて送信していただけると非常にありがたいです。';
               formMessage.style.display = "block";
+
+              // 1件以上ある場合、「すべてコピーする」ボタンを表示
+              copyButton.style.display = "inline-block";
             }
           } catch (e) {
             console.error(e);
             statusEl.textContent = "JSON の解析に失敗しました。ファイル形式を確認してください。";
             formMessage.style.display = "none";
             formMessage.innerHTML = "";
+            copyButton.style.display = "none";
           }
         };
         reader.readAsText(selectedFile, "utf-8");
       });
+
+      // 「すべてコピーする」ボタンクリックでテキストエリアの内容をクリップボードへコピー
+      copyButton.addEventListener("click", () => {
+        const text = resultEl.value;
+        if (!text.trim()) {
+          statusEl.textContent = "コピーするURLがありません。";
+          return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text)
+            .then(() => {
+              // 成功時：ポップアップ表示
+              showCopyPopup();
+              statusEl.textContent = "";
+            })
+            .catch(() => {
+              fallbackCopy();
+            });
+        } else {
+          fallbackCopy();
+        }
+      });
+
+      function fallbackCopy() {
+        try {
+          resultEl.focus();
+          resultEl.select();
+          const success = document.execCommand("copy");
+          if (success) {
+            // 成功時：ポップアップ表示
+            showCopyPopup();
+            statusEl.textContent = "";
+          } else {
+            statusEl.textContent = "コピーに失敗しました。手動で選択してコピーしてください。";
+          }
+        } catch (e) {
+          statusEl.textContent = "コピーに失敗しました。手動で選択してコピーしてください。";
+        }
+      }
+
+      function showCopyPopup() {
+        if (!copyPopup) return;
+        copyPopup.style.display = "block";
+        if (popupTimer) {
+          clearTimeout(popupTimer);
+        }
+        popupTimer = setTimeout(hideCopyPopup, 1500);
+      }
+
+      function hideCopyPopup() {
+        if (!copyPopup) return;
+        copyPopup.style.display = "none";
+      }
 
       /**
        * PowerShellスクリプトのロジックをJSで再現
