@@ -97,40 +97,6 @@
     .form-message .form-link {
       font-size: 1.5em;
     }
-    /* コピー関連 */
-    .actions {
-      margin-top: 0.5rem;
-    }
-    #copyButton {
-      margin-top: 0.5rem;
-      padding: 0.4rem 0.9rem;
-      border-radius: 999px;
-      border: none;
-      font-size: 0.85rem;
-      cursor: pointer;
-      background: #059669;
-      color: #fff;
-      font-weight: 600;
-      display: none; /* 結果が出るまで隠す */
-    }
-    #copyButton:disabled {
-      background: #9ca3af;
-      cursor: default;
-    }
-    .copy-popup {
-      position: fixed;
-      left: 50%;
-      bottom: 24px;
-      transform: translateX(-50%);
-      background: rgba(17, 24, 39, 0.92);
-      color: #f9fafb;
-      padding: 0.5rem 1rem;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-      z-index: 1000;
-      display: none;
-    }
     /* フッター */
     .footer {
       max-width: 800px;
@@ -172,11 +138,6 @@
     <div class="section">
       <label for="result">抽出されたURL一覧</label>
       <textarea id="result" readonly placeholder="ここに結果が表示されます"></textarea>
-
-      <div class="actions">
-        <button id="copyButton" type="button">すべてコピーする</button>
-      </div>
-
       <div class="form-message" id="formMessage" style="display:none;"></div>
     </div>
   </div>
@@ -186,9 +147,6 @@
     Powered By
     <a href="https://x.com/Barbers_Pole_" target="_blank" rel="noopener noreferrer">@Barbers_pole_</a>
   </div>
-
-  <!-- コピー完了ポップアップ -->
-  <div class="copy-popup" id="copyPopup">URLをコピーしました。</div>
 
   <script>
     (function () {
@@ -203,11 +161,8 @@
       const statusEl    = document.getElementById("status");
       const resultEl    = document.getElementById("result");
       const formMessage = document.getElementById("formMessage");
-      const copyButton  = document.getElementById("copyButton");
-      const copyPopup   = document.getElementById("copyPopup");
 
       let selectedFile = null;
-      let popupTimer   = null;
 
       fileInput.addEventListener("change", () => {
         selectedFile = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
@@ -216,8 +171,6 @@
         resultEl.value = "";
         formMessage.style.display = "none";
         formMessage.innerHTML = "";
-        copyButton.style.display = "none";
-        hideCopyPopup();
       });
 
       runButton.addEventListener("click", () => {
@@ -228,8 +181,6 @@
         resultEl.value = "";
         formMessage.style.display = "none";
         formMessage.innerHTML = "";
-        copyButton.style.display = "none";
-        hideCopyPopup();
 
         const reader = new FileReader();
         reader.onerror = () => {
@@ -248,124 +199,26 @@
               statusEl.textContent = "条件に合致するURLは見つかりませんでした。";
               formMessage.style.display = "none";
               formMessage.innerHTML = "";
-              copyButton.style.display = "none";
             } else {
               statusEl.textContent = `抽出されたURL数: ${urls.length} 件`;
 
-              // 「こちらのフォーム」を1.5倍表示
+              // フォーム案内メッセージを表示
               formMessage.innerHTML =
                 '抽出されたURLを、' +
                 '<a class="form-link" href="https://docs.google.com/forms/d/e/1FAIpQLSeykXX-h9t-PE15nohApOopopPf9Nxkp4hLmzfkt9D9yjqtAg/viewform" target="_blank" rel="noopener noreferrer">' +
                 'こちらのフォーム' +
                 '</a> に貼り付けて送信していただけると非常にありがたいです。';
               formMessage.style.display = "block";
-
-              // 結果が1件以上あるときだけコピー用ボタンを表示
-              copyButton.style.display = "inline-block";
             }
           } catch (e) {
             console.error(e);
             statusEl.textContent = "JSON の解析に失敗しました。ファイル形式を確認してください。";
             formMessage.style.display = "none";
             formMessage.innerHTML = "";
-            copyButton.style.display = "none";
           }
         };
         reader.readAsText(selectedFile, "utf-8");
       });
-
-      // 「すべてコピーする」ボタン
-      copyButton.addEventListener("click", () => {
-        const raw = resultEl.value;
-        if (!raw.trim()) {
-          statusEl.textContent = "コピーするURLがありません。";
-          return;
-        }
-
-        // 改行コードを一旦 \n に統一（端末間での差異を減らす）
-        const normalized = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-        copyTextToClipboard(normalized)
-          .then(() => {
-            showCopyPopup();
-            statusEl.textContent = "";
-          })
-          .catch((err) => {
-            console.error(err);
-            statusEl.textContent = "コピーに失敗しました。手動で選択してコピーしてください。";
-          });
-      });
-
-      /**
-       * Clipboard API / execCommand 両対応でコピー
-       * 一部ブラウザでURLリストをコピーすると改行が %0A になる問題を避けるため、
-       * ClipboardItem で text/plain を明示します。:contentReference[oaicite:1]{index=1}
-       */
-      function copyTextToClipboard(text) {
-        // 1) ClipboardItem + text/plain を明示
-        if (navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
-          const blob = new Blob([text], { type: "text/plain" });
-          const item = new ClipboardItem({ "text/plain": blob });
-          return navigator.clipboard.write([item]);
-        }
-
-        // 2) 通常の Clipboard API
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          return navigator.clipboard.writeText(text);
-        }
-
-        // 3) execCommand にフォールバック
-        return new Promise((resolve, reject) => {
-          try {
-            fallbackCopy(text);
-            resolve();
-          } catch (e) {
-            reject(e);
-          }
-        });
-      }
-
-      // execCommand 用フォールバック（iPhone/Safari 対応込み）
-      function fallbackCopy(text) {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.readOnly = true;
-        textarea.style.position = "fixed";
-        textarea.style.top = "-9999px";
-        textarea.style.left = "-9999px";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-
-        // iOS を含め確実に選択させる
-        const range = document.createRange();
-        range.selectNodeContents(textarea);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-        textarea.setSelectionRange(0, textarea.value.length);
-
-        const success = document.execCommand("copy");
-        selection.removeAllRanges();
-        document.body.removeChild(textarea);
-
-        if (!success) {
-          throw new Error("execCommand copy failed");
-        }
-      }
-
-      function showCopyPopup() {
-        if (!copyPopup) return;
-        copyPopup.style.display = "block";
-        if (popupTimer) {
-          clearTimeout(popupTimer);
-        }
-        popupTimer = setTimeout(hideCopyPopup, 1500);
-      }
-
-      function hideCopyPopup() {
-        if (!copyPopup) return;
-        copyPopup.style.display = "none";
-      }
 
       /**
        * PowerShellスクリプトのロジックをJSで再現
@@ -386,7 +239,8 @@
 
           const title = (String(it.title ?? "")).trim();
           if (!title) continue;
-          // 先頭一致から「含まれていればOK」に変更（例: "Watched 【学マス】..." に対応）
+          // 「【学マス】」がタイトルのどこかに含まれていればOK
+          // （例: "Watched 【学マス】..." に対応）
           if (!title.includes(PREFIX)) continue;
 
           const fromAds = hasAdsDetail(it.details);
