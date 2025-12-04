@@ -386,7 +386,8 @@
 
           const title = (String(it.title ?? "")).trim();
           if (!title) continue;
-          if (!title.startsWith(PREFIX)) continue;
+          // 先頭一致から「含まれていればOK」に変更（例: "Watched 【学マス】..." に対応）
+          if (!title.includes(PREFIX)) continue;
 
           const fromAds = hasAdsDetail(it.details);
           if (!fromAds) continue;
