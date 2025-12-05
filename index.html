@@ -75,7 +75,7 @@
     ul {
       margin-top: 0.3rem;
     }
-    /* フォーム案内メッセージ */
+    /* フォーム案内メッセージ＋埋め込みエリア */
     .form-message {
       margin-top: 0.75rem;
       font-size: 0.9rem;
@@ -93,9 +93,16 @@
     .form-message a:hover {
       text-decoration: underline;
     }
-    /* 「こちらのフォーム」を1.5倍にするクラス */
     .form-message .form-link {
       font-size: 1.5em;
+    }
+    .form-embed {
+      margin-top: 0.75rem;
+    }
+    .form-embed iframe {
+      width: 100%;
+      max-width: 100%;
+      border: 0;
     }
     /* フッター */
     .footer {
@@ -202,12 +209,18 @@
             } else {
               statusEl.textContent = `抽出されたURL数: ${urls.length} 件`;
 
-              // フォーム案内メッセージを表示
+              // テキスト＋埋め込みフォームを表示
               formMessage.innerHTML =
                 '抽出されたURLを、' +
                 '<a class="form-link" href="https://docs.google.com/forms/d/e/1FAIpQLSeykXX-h9t-PE15nohApOopopPf9Nxkp4hLmzfkt9D9yjqtAg/viewform" target="_blank" rel="noopener noreferrer">' +
                 'こちらのフォーム' +
-                '</a> に貼り付けて送信していただけると非常にありがたいです。';
+                '</a> に貼り付けて送信していただけると非常にありがたいです。' +
+                '<div class="form-embed">' +
+                  '<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSeykXX-h9t-PE15nohApOopopPf9Nxkp4hLmzfkt9D9yjqtAg/viewform?embedded=true" ' +
+                          'width="640" height="800" frameborder="0" marginheight="0" marginwidth="0">' +
+                    '読み込んでいます…' +
+                  '</iframe>' +
+                '</div>';
               formMessage.style.display = "block";
             }
           } catch (e) {
@@ -239,8 +252,7 @@
 
           const title = (String(it.title ?? "")).trim();
           if (!title) continue;
-          // 「【学マス】」がタイトルのどこかに含まれていればOK
-          // （例: "Watched 【学マス】..." に対応）
+          // 「【学マス】」がタイトルのどこかに含まれていればOK（例: "Watched 【学マス】..."）
           if (!title.includes(PREFIX)) continue;
 
           const fromAds = hasAdsDetail(it.details);
