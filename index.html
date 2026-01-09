@@ -126,7 +126,7 @@
   <div class="container">
     <h1>学マス広告 URL 抽出ツール</h1>
     <p>
-      <a href="https://takeout.google.com/settings/takeout/custom/my_activity" target="_blank" rel="noopener noreferrer">
+      <a href="https://takeout.google.com/settings/takeout/custom/youtube" target="_blank" rel="noopener noreferrer">
         Google データエクスポート
       </a>
       から取得した <code>watch-history.json</code>（または同等形式）から、学マス関連の広告経由で視聴したURLを抽出します。
@@ -151,7 +151,7 @@
 
   <!-- フッター -->
   <div class="footer">
-    Powered by
+    Powered By
     <a href="https://x.com/Barbers_Pole_" target="_blank" rel="noopener noreferrer">@Barbers_pole_</a>
   </div>
 
@@ -159,9 +159,10 @@
     (function () {
       "use strict";
 
-      // PowerShellスクリプトと同じ条件
+      // 判定に使う文字列
       const PREFIX = "【学マス】";
-      const ADS_REGEX = /(Google\s*広告|From\s+Google\s+Ads)/i;
+      // タイトルに含まれていれば広告とみなす解像度表記
+      const ASPECT_MARKERS = ["9x16", "1x1", "16x9", "9×16", "1×1", "16×9"];
 
       const fileInput   = document.getElementById("jsonFile");
       const runButton   = document.getElementById("runButton");
@@ -234,9 +235,11 @@
       });
 
       /**
-       * PowerShellスクリプトのロジックをJSで再現
-       * @param {*} data JSONパース済みオブジェクト
-       * @returns {string[]} URLの配列（重複排除済・time降順ベース）
+       * 抽出ロジック
+       * 条件:
+       *  - title に「【学マス】」が含まれる
+       *  - かつ title に ASPECT_MARKERS のいずれかが含まれる
+       * を満たす URL を time 降順で重複排除して返す
        */
       function processJson(data) {
         const items = extractItemsArray(data);
@@ -252,11 +255,13 @@
 
           const title = (String(it.title ?? "")).trim();
           if (!title) continue;
-          // 「【学マス】」がタイトルのどこかに含まれていればOK（例: "Watched 【学マス】..."）
+
+          // 「【学マス】」を含むか
           if (!title.includes(PREFIX)) continue;
 
-          const fromAds = hasAdsDetail(it.details);
-          if (!fromAds) continue;
+          // いずれかのアスペクト表記を含むか
+          const hasAspectMarker = ASPECT_MARKERS.some(marker => title.includes(marker));
+          if (!hasAspectMarker) continue;
 
           let url = it.titleUrl || it.title_url;
           if (!url) continue;
@@ -269,7 +274,7 @@
         // time の降順でソート
         rows.sort((a, b) => b.time.localeCompare(a.time));
 
-        // URLの重複排除（最初に出てきたものを採用）
+        // URL の重複排除（最初に出てきたものを採用）
         const seen = new Set();
         const urls = [];
         for (const r of rows) {
@@ -300,35 +305,6 @@
         return [];
       }
 
-      /**
-       * details に広告情報が含まれているか確認
-       */
-      function hasAdsDetail(details) {
-        if (!details) return false;
-
-        // 配列の場合
-        if (Array.isArray(details)) {
-          for (const d of details) {
-            const name = String(d && d.name != null ? d.name : "");
-            if (ADS_REGEX.test(name)) {
-              return true;
-            }
-          }
-          return false;
-        }
-
-        // オブジェクトの場合も念のため中身を走査
-        if (typeof details === "object") {
-          for (const value of Object.values(details)) {
-            const name = String(value && value.name != null ? value.name : "");
-            if (ADS_REGEX.test(name)) {
-              return true;
-            }
-          }
-        }
-
-        return false;
-      }
     })();
   </script>
 </body>
